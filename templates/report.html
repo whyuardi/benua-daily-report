@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Daily Report — BGE{% endblock %}
+{% block content %}
+<div class="page-title">Daily Report</div>
+<div class="fresh-divider"></div>
+<div class="page-meta" id="dateDisplay"></div>
+
+<div class="report-form">
+    <div id="reportSections">
+        <div class="loading-state">Loading...</div>
+    </div>
+
+    <div class="report-actions">
+        <button class="btn btn-primary btn-full" id="submitBtn" style="font-size:1.05rem;min-height:48px">
+            <span class="btn-text">Simpan Report</span>
+            <span class="btn-loader" style="display:none">—</span>
+        </button>
+        <button class="btn btn-secondary btn-full" id="whatsappBtn">
+            Copy ke WhatsApp
+        </button>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = window.BGE_API;
+
+var today = new Date();
+document.getElementById('dateDisplay').textContent = today.toLocaleDateString('id-ID', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    htmx.ajax('GET', '/partials/report-items', {
+        target: '#reportSections',
+        swap: 'innerHTML',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('bge_token') }
+    });
+});
+
+document.getElementById('submitBtn').addEventListener('click', async function() {
+    var btn = document.getElementById('submitBtn');
+    var btnText = btn.querySelector('.btn-text');
+    var loader = btn.querySelector('.btn-loader');
+
+    btnText.style.display = 'none';
+    loader.style.display = 'inline';
+    btn.disabled = true;
+
+    try {
+        var completed = [];
+        var inProgress = [];
+        var nextAction = [];
+
+        document.querySelectorAll('#items-completed .report-item .item-text').forEach(function(el) {
+            completed.push(el.textContent.trim());
+        });
+        document.querySelectorAll('#items-in_progress .report-item .item-text').forEach(function(el) {
+            inProgress.push(el.textContent.trim());
+        });
+        document.querySelectorAll('#items-next_action .report-item .item-text').forEach(function(el) {
+            nextAction.push(el.textContent.trim());
+        });
+
+        var form = new URLSearchParams();
+        completed.forEach(function(c) { form.append('completed[]', c); });
+        inProgress.forEach(function(i) { form.append('in_progress[]', i); });
+        nextAction.forEach(function(n) { form.append('next_action[]', n); });
+
+        await API.fetchJSON('/api/report/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: form.toString()
+        });
+
+        API.showToast('Report tersimpan');
+    } catch (err) {
+        API.showError('Gagal menyimpan report');
+    } finally {
+        btnText.style.display = 'inline';
+        loader.style.display = 'none';
+        btn.disabled = false;
+    }
+});
+
+document.getElementById('whatsappBtn').addEventListener('click', async function() {
+    try {
+        var data = await API.fetchJSON('/api/report/today');
+        if (!data.report) {
+            API.showError('Belum ada report hari ini');
+            return;
+        }
+        var wa = await API.fetchJSON('/api/report/' + data.report.id + '/whatsapp');
+        await navigator.clipboard.writeText(wa.text);
+        API.showToast('Teks report disalin');
+    } catch (err) {
+        API.showError('Gagal menyalin teks');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Missing — BGE{% endblock %}
+{% block content %}
+<div class="page-title">Missing Reports</div>
+<div class="fresh-divider"></div>
+<div class="page-meta">Karyawan yang belum submit</div>
+
+<div class="page-controls">
+    <input type="date" class="input input-sm" id="filterDate" value="{{ today }}" style="max-width:160px">
+    <button class="btn btn-primary btn-sm" id="refreshBtn">&#8635; Refresh</button>
+</div>
+
+<div class="stats-grid" style="grid-template-columns:1fr 1fr">
+    <div class="stat-card">
+        <div class="stat-num warning" id="statMissing">0</div>
+        <div class="stat-label">Belum Report</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-num accent" id="statSubmitted">0</div>
+        <div class="stat-label">Sudah Report</div>
+    </div>
+</div>
+
+<div id="missingContainer">
+    <div class="loading-state">Loading...</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = window.BGE_API;
+
+async function loadMissing() {
+    var date = document.getElementById('filterDate').value;
+
+    try {
+        var data = await API.fetchJSON('/api/dashboard/today?date=' + date);
+
+        document.getElementById('statMissing').textContent = data.missing_count;
+        document.getElementById('statSubmitted').textContent = data.submitted;
+
+        var container = document.getElementById('missingContainer');
+
+        if (data.missing_users.length === 0) {
+            container.innerHTML = '<div class="empty-state">Semua karyawan sudah report hari ini</div>';
+            return;
+        }
+
+        var grouped = {};
+        data.missing_users.forEach(function(u) {
+            var div = u.division || 'Tanpa Divisi';
+            if (!grouped[div]) grouped[div] = [];
+            grouped[div].push(u);
+        });
+
+        container.innerHTML = Object.keys(grouped).map(function(div) {
+            return '<div class="missing-group">' +
+                '<div class="missing-group-header">' +
+                    '<span>' + esc(div) + '</span>' +
+                    '<span class="missing-group-count">' + grouped[div].length + ' orang</span>' +
+                '</div>' +
+                grouped[div].map(function(u) {
+                    return '<div class="missing-user">' +
+                        '<span class="missing-user-name">' + esc(u.name) + '</span>' +
+                        '<span class="missing-user-status">Belum submit</span>' +
+                    '</div>';
+                }).join('') +
+            '</div>';
+        }).join('');
+    } catch {
+        document.getElementById('missingContainer').innerHTML = '<div class="empty-state error">Gagal load data</div>';
+    }
+}
+
+document.getElementById('filterDate').addEventListener('change', loadMissing);
+document.getElementById('refreshBtn').addEventListener('click', loadMissing);
+document.getElementById('filterDate').valueAsDate = new Date();
+
+loadMissing();
+</script>
+{% endblock %}

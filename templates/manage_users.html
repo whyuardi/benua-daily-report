@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Users — BGE{% endblock %}
+{% block content %}
+<div class="page-title">Manage Users</div>
+<div class="fresh-divider"></div>
+<div class="page-controls">
+    <button class="btn btn-primary" id="addUserBtn">+ Tambah Karyawan</button>
+</div>
+
+<div class="table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nama</th>
+                <th>HP</th>
+                <th>Divisi</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="usersBody">
+            <tr><td colspan="6" class="loading-state">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="userModal" style="display:none">
+    <div class="modal modal-sm">
+        <div class="modal-header">
+            <h3 id="userModalTitle">Tambah Karyawan</h3>
+            <button class="btn-icon close-modal">&times;</button>
+        </div>
+        <form class="modal-body" id="userForm">
+            <input type="hidden" name="user_id" id="editUserId">
+            <div class="field">
+                <label class="label">Nama Lengkap</label>
+                <input type="text" class="input" name="name" id="editName" required>
+            </div>
+            <div class="field">
+                <label class="label">Nomor HP</label>
+                <input type="tel" class="input" name="phone" id="editPhone" required inputmode="numeric">
+            </div>
+            <div class="field" id="pinField">
+                <label class="label">PIN Awal</label>
+                <input type="password" class="input" name="pin" id="editPin" maxlength="4" inputmode="numeric" pattern="[0-9]{4}">
+            </div>
+            <div class="field">
+                <label class="label">Divisi</label>
+                <select class="input" name="division_id" id="editDivision" required></select>
+            </div>
+            <div class="field" id="activeField" style="display:none">
+                <label class="label">Status</label>
+                <select class="input" name="is_active" id="editActive">
+                    <option value="1">Aktif</option>
+                    <option value="0">Nonaktif</option>
+                </select>
+            </div>
+        </form>
+        <div class="modal-footer">
+            <button class="btn btn-secondary close-modal">Batal</button>
+            <button class="btn btn-primary" id="saveUserBtn">Simpan</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = window.BGE_API;
+
+async function loadUsers() {
+    try {
+        var users = await API.fetchJSON('/api/users');
+        var body = document.getElementById('usersBody');
+        body.innerHTML = users.map(function(u) {
+            return '<tr>' +
+                '<td class="cell-name">' + esc(u.name) + '</td>' +
+                '<td>' + esc(u.phone) + '</td>' +
+                '<td>' + esc(u.division_name || '-') + '</td>' +
+                '<td><span class="role-badge ' + u.role + '">' + u.role + '</span></td>' +
+                '<td><span class="status-dot ' + (u.is_active ? 'active' : 'inactive') + '"></span> ' +
+                    (u.is_active ? 'Aktif' : 'Nonaktif') + '</td>' +
+                '<td class="cell-actions">' +
+                    '<button class="btn-icon edit-user" data-id="' + u.id + '" ' +
+                        'data-name="' + esc(u.name) + '" data-phone="' + esc(u.phone) + '" ' +
+                        'data-division="' + (u.division_id || '') + '" data-role="' + u.role + '" ' +
+                        'data-active="' + u.is_active + '" title="Edit">&#9998;</button>' +
+                    '<button class="btn-icon reset-pin" data-id="' + u.id + '" ' +
+                        'data-name="' + esc(u.name) + '" title="Reset PIN">&#9881;</button>' +
+                '</td>' +
+            '</tr>';
+        }).join('');
+
+        document.querySelectorAll('.edit-user').forEach(function(btn) {
+            btn.addEventListener('click', function() { openEdit(btn.dataset); });
+        });
+        document.querySelectorAll('.reset-pin').forEach(function(btn) {
+            btn.addEventListener('click', function() { resetPin(btn.dataset.id, btn.dataset.name); });
+        });
+    } catch {
+        document.getElementById('usersBody').innerHTML = '<tr><td colspan="6" class="empty-state error">Gagal load data</td></tr>';
+    }
+}
+
+async function loadDivisions() {
+    try {
+        var divs = await API.fetchJSON('/api/divisions');
+        var sel = document.getElementById('editDivision');
+        sel.innerHTML = divs.map(function(d) {
+            return '<option value="' + d.id + '">' + esc(d.name) + '</option>';
+        }).join('');
+    } catch {}
+}
+
+function openEdit(data) {
+    document.getElementById('userModalTitle').textContent = 'Edit Karyawan';
+    document.getElementById('editUserId').value = data.id;
+    document.getElementById('editName').value = data.name;
+    document.getElementById('editPhone').value = data.phone;
+    document.getElementById('editDivision').value = data.division || '';
+    document.getElementById('editActive').value = data.active;
+    document.getElementById('pinField').style.display = 'none';
+    document.getElementById('editPin').required = false;
+    document.getElementById('activeField').style.display = 'block';
+    document.getElementById('userModal').style.display = 'flex';
+}
+
+document.getElementById('addUserBtn').addEventListener('click', function() {
+    document.getElementById('userModalTitle').textContent = 'Tambah Karyawan';
+    document.getElementById('editUserId').value = '';
+    document.getElementById('editName').value = '';
+    document.getElementById('editPhone').value = '';
+    document.getElementById('editPin').value = '';
+    document.getElementById('editPin').required = true;
+    document.getElementById('pinField').style.display = 'block';
+    document.getElementById('activeField').style.display = 'none';
+    document.getElementById('userModal').style.display = 'flex';
+});
+
+document.getElementById('saveUserBtn').addEventListener('click', async function() {
+    var form = document.getElementById('userForm');
+    var userId = document.getElementById('editUserId').value;
+
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    try {
+        if (userId) {
+            await API.fetchJSON('/api/users/update', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    user_id: userId,
+                    name: document.getElementById('editName').value,
+                    phone: document.getElementById('editPhone').value,
+                    division_id: document.getElementById('editDivision').value,
+                    is_active: document.getElementById('editActive').value,
+                })
+            });
+            API.showToast('User diperbarui');
+        } else {
+            await API.fetchJSON('/api/users/create', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    name: document.getElementById('editName').value,
+                    phone: document.getElementById('editPhone').value,
+                    pin: document.getElementById('editPin').value,
+                    division_id: document.getElementById('editDivision').value,
+                })
+            });
+            API.showToast('User ditambahkan');
+        }
+        document.getElementById('userModal').style.display = 'none';
+        loadUsers();
+    } catch (err) {
+        API.showError('Gagal: ' + (err.message || 'Unknown error'));
+    }
+});
+
+async function resetPin(id, name) {
+    var newPin = prompt('Reset PIN untuk ' + name + '?\nMasukkan PIN baru (4 digit):', '1234');
+    if (!newPin || newPin.length !== 4) return;
+    try {
+        await API.fetchJSON('/api/users/reset-pin', {
+            method: 'POST',
+            body: new URLSearchParams({ user_id: id, new_pin: newPin })
+        });
+        API.showToast('PIN ' + name + ' direset');
+    } catch {
+        API.showError('Gagal reset PIN');
+    }
+}
+
+document.querySelectorAll('.close-modal').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.getElementById('userModal').style.display = 'none';
+    });
+});
+document.getElementById('userModal').addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) document.getElementById('userModal').style.display = 'none';
+});
+
+loadDivisions().then(loadUsers);
+</script>
+{% endblock %}

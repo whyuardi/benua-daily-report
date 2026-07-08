@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — BGE{% endblock %}
+{% block content %}
+<div class="page-title">Dashboard</div>
+<div class="fresh-divider"></div>
+<div class="page-meta" id="dashDate"></div>
+
+<div class="page-controls">
+    <input type="date" class="input input-sm" id="filterDate" value="{{ today }}" style="max-width:160px">
+    <select class="input input-sm" id="filterDivision" style="max-width:180px">
+        <option value="">Semua Divisi</option>
+    </select>
+    <button class="btn btn-primary btn-sm" id="refreshBtn">&#8635; Refresh</button>
+</div>
+
+<div class="stats-grid" id="statsRow">
+    <div class="stat-card span-2">
+        <div class="stat-num accent" id="statTotal">0</div>
+        <div class="stat-label">Total Karyawan</div>
+        <div class="stat-bar">
+            <div class="stat-bar-track">
+                <div class="stat-bar-fill" id="statBarFill" style="width:0%"></div>
+            </div>
+            <span class="stat-bar-label" id="statBarLabel">0/0</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-num accent" id="statSubmitted">0</div>
+        <div class="stat-label">Sudah Report</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-num warning" id="statMissing">0</div>
+        <div class="stat-label">Belum Report</div>
+    </div>
+</div>
+
+<div class="tabs">
+    <button class="tab active" data-tab="reports">Reports</button>
+    <button class="tab" data-tab="missing">Missing</button>
+</div>
+
+<div class="tab-content active" id="tabReports">
+    <div class="report-list" id="reportList">
+        <div class="loading-state">Loading...</div>
+    </div>
+</div>
+
+<div class="tab-content" id="tabMissing">
+    <div id="missingList"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = window.BGE_API;
+
+async function loadDashboard() {
+    const date = document.getElementById('filterDate').value;
+    const div = document.getElementById('filterDivision').value;
+    const params = new URLSearchParams({ date });
+    if (div) params.set('division_id', div);
+
+    try {
+        const data = await API.fetchJSON('/api/dashboard/today?' + params.toString());
+
+        document.getElementById('statTotal').textContent = data.total_users;
+        document.getElementById('statSubmitted').textContent = data.submitted;
+        document.getElementById('statMissing').textContent = data.missing_count;
+
+        const pct = data.total_users > 0 ? Math.round((data.submitted / data.total_users) * 100) : 0;
+        document.getElementById('statBarFill').style.width = pct + '%';
+        document.getElementById('statBarLabel').textContent = data.submitted + '/' + data.total_users;
+
+        // Reports
+        const reportList = document.getElementById('reportList');
+        if (data.reports.length === 0) {
+            reportList.innerHTML = '<div class="empty-state">Belum ada report hari ini</div>';
+        } else {
+            reportList.innerHTML = data.reports.map(function(r) {
+                return '<div class="report-card">' +
+                    '<div class="report-card-header">' +
+                        '<span class="report-card-name">' + esc(r.user_name) + '</span>' +
+                        '<span class="report-card-div">' + esc(r.division_name || '-') + '</span>' +
+                    '</div>' +
+                    '<div class="report-card-items">' + renderItems(r.items) + '</div>' +
+                    '<div class="report-card-footer">' +
+                        '<span>' + (r.updated_at ? formatTime(r.updated_at) : '-') + '</span>' +
+                        '<button class="btn-icon" onclick="window.location.href=\'/my-reports?view=' + r.report_id + '\'">&rarr;</button>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        // Missing
+        const missingList = document.getElementById('missingList');
+        if (data.missing_users.length === 0) {
+            missingList.innerHTML = '<div class="empty-state">Semua karyawan sudah report hari ini</div>';
+        } else {
+            var grouped = {};
+            data.missing_users.forEach(function(u) {
+                var div = u.division || 'Tanpa Divisi';
+                if (!grouped[div]) grouped[div] = [];
+                grouped[div].push(u);
+            });
+            missingList.innerHTML = Object.keys(grouped).map(function(div) {
+                return '<div class="missing-group">' +
+                    '<div class="missing-group-header">' +
+                        '<span>' + esc(div) + '</span>' +
+                        '<span class="missing-group-count">' + grouped[div].length + ' orang</span>' +
+                    '</div>' +
+                    grouped[div].map(function(u) {
+                        return '<div class="missing-user">' +
+                            '<span class="missing-user-name">' + esc(u.name) + '</span>' +
+                            '<span class="missing-user-status">Belum submit</span>' +
+                        '</div>';
+                    }).join('') +
+                '</div>';
+            }).join('');
+        }
+    } catch (err) {
+        API.showError('Gagal load dashboard');
+    }
+}
+
+function renderItems(items) {
+    var cats = { completed: 'green', in_progress: 'yellow', next_action: 'dim' };
+    var html = '';
+    Object.keys(cats).forEach(function(key) {
+        var list = items[key] || [];
+        list.forEach(function(i) {
+            html += '<span class="report-item-pill"><span class="dot ' + cats[key] + '"></span>' + esc(i) + '</span>';
+        });
+    });
+    return html || '<span style="color:var(--text-muted);font-size:0.85rem">Tidak ada item</span>';
+}
+
+function formatTime(dt) {
+    var d = new Date(dt + 'Z');
+    return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+}
+
+async function loadDivisions() {
+    try {
+        var divs = await API.fetchJSON('/api/divisions');
+        var sel = document.getElementById('filterDivision');
+        divs.forEach(function(d) {
+            var opt = document.createElement('option');
+            opt.value = d.id;
+            opt.textContent = d.name;
+            sel.appendChild(opt);
+        });
+    } catch {}
+}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+        document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        var id = 'tab' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1);
+        document.getElementById(id).classList.add('active');
+    });
+});
+
+document.getElementById('filterDate').addEventListener('change', loadDashboard);
+document.getElementById('filterDivision').addEventListener('change', loadDashboard);
+document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
+
+document.getElementById('dashDate').textContent = new Date().toLocaleDateString('id-ID', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+});
+
+loadDivisions().then(loadDashboard);
+</script>
+{% endblock %}

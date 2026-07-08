@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Divisions — BGE{% endblock %}
+{% block content %}
+<div class="page-title">Manage Divisions</div>
+<div class="fresh-divider"></div>
+<div class="page-controls">
+    <button class="btn btn-primary" id="addDivBtn">+ Tambah Divisi</button>
+</div>
+
+<div class="table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nama Divisi</th>
+                <th>Dibuat</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="divBody">
+            <tr><td colspan="3" class="loading-state">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="divModal" style="display:none">
+    <div class="modal modal-sm">
+        <div class="modal-header">
+            <h3 id="divModalTitle">Tambah Divisi</h3>
+            <button class="btn-icon close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editDivId">
+            <div class="field">
+                <label class="label">Nama Divisi</label>
+                <input type="text" class="input" id="editDivName" required placeholder="Operation & Service">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary close-modal">Batal</button>
+            <button class="btn btn-danger" id="deleteDivBtn" style="display:none">Hapus</button>
+            <button class="btn btn-primary" id="saveDivBtn">Simpan</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = window.BGE_API;
+
+async function loadDivisions() {
+    try {
+        var divs = await API.fetchJSON('/api/divisions');
+        var body = document.getElementById('divBody');
+        body.innerHTML = divs.map(function(d) {
+            return '<tr>' +
+                '<td class="cell-name">' + esc(d.name) + '</td>' +
+                '<td>' + new Date(d.created_at + 'Z').toLocaleDateString('id-ID') + '</td>' +
+                '<td class="cell-actions">' +
+                    '<button class="btn-icon edit-div" data-id="' + d.id + '" data-name="' + esc(d.name) + '" title="Edit">&#9998;</button>' +
+                '</td>' +
+            '</tr>';
+        }).join('');
+
+        document.querySelectorAll('.edit-div').forEach(function(btn) {
+            btn.addEventListener('click', function() { openEditDiv(btn.dataset); });
+        });
+    } catch {
+        document.getElementById('divBody').innerHTML = '<tr><td colspan="3" class="empty-state error">Gagal load</td></tr>';
+    }
+}
+
+function openEditDiv(data) {
+    document.getElementById('divModalTitle').textContent = 'Edit Divisi';
+    document.getElementById('editDivId').value = data.id;
+    document.getElementById('editDivName').value = data.name;
+    document.getElementById('deleteDivBtn').style.display = 'inline-block';
+    document.getElementById('divModal').style.display = 'flex';
+}
+
+document.getElementById('addDivBtn').addEventListener('click', function() {
+    document.getElementById('divModalTitle').textContent = 'Tambah Divisi';
+    document.getElementById('editDivId').value = '';
+    document.getElementById('editDivName').value = '';
+    document.getElementById('deleteDivBtn').style.display = 'none';
+    document.getElementById('divModal').style.display = 'flex';
+});
+
+document.getElementById('saveDivBtn').addEventListener('click', async function() {
+    var name = document.getElementById('editDivName').value.trim();
+    var id = document.getElementById('editDivId').value;
+    if (!name) return;
+
+    try {
+        if (id) {
+            await API.fetchJSON('/api/divisions/update', {
+                method: 'POST',
+                body: new URLSearchParams({ div_id: id, name: name })
+            });
+            API.showToast('Divisi diperbarui');
+        } else {
+            await API.fetchJSON('/api/divisions/create', {
+                method: 'POST',
+                body: new URLSearchParams({ name: name })
+            });
+            API.showToast('Divisi ditambahkan');
+        }
+        document.getElementById('divModal').style.display = 'none';
+        loadDivisions();
+    } catch (err) {
+        API.showError('Gagal: ' + (err.message || 'Unknown'));
+    }
+});
+
+document.getElementById('deleteDivBtn').addEventListener('click', async function() {
+    var id = document.getElementById('editDivId').value;
+    var name = document.getElementById('editDivName').value;
+    if (!confirm('Hapus divisi "' + name + '"?')) return;
+    try {
+        await API.fetchJSON('/api/divisions/delete', {
+            method: 'POST',
+            body: new URLSearchParams({ div_id: id })
+        });
+        API.showToast('Divisi dihapus');
+        document.getElementById('divModal').style.display = 'none';
+        loadDivisions();
+    } catch (err) {
+        API.showError('Gagal: ' + (err.message || 'Divisi masih memiliki karyawan'));
+    }
+});
+
+document.querySelectorAll('.close-modal').forEach(function(btn) {
+    btn.addEventListener('click', function() { document.getElementById('divModal').style.display = 'none'; });
+});
+document.getElementById('divModal').addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) document.getElementById('divModal').style.display = 'none';
+});
+
+loadDivisions();
+</script>
+{% endblock %}

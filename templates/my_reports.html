@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}My Reports — BGE{% endblock %}
+{% block content %}
+<div class="page-title">My Reports</div>
+<div class="fresh-divider"></div>
+<div class="page-meta">Riwayat report harian</div>
+
+<div class="history-list" id="reportList">
+    <div class="loading-state">Loading...</div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detailModal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Detail Report</h3>
+            <button class="btn-icon close-modal">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary btn-sm" id="modalWhatsApp">Copy WA</button>
+            <button class="btn btn-sm close-modal">Tutup</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = window.BGE_API;
+
+async function loadReports() {
+    try {
+        var reports = await API.fetchJSON('/api/my-reports');
+        var list = document.getElementById('reportList');
+
+        if (reports.length === 0) {
+            list.innerHTML = '<div class="empty-state">Belum ada report</div>';
+            return;
+        }
+
+        list.innerHTML = reports.map(function(r) {
+            var d = new Date(r.report_date + 'T00:00:00');
+            var dateStr = d.toLocaleDateString('id-ID', {
+                weekday: 'long', day: 'numeric', month: 'short', year: 'numeric'
+            });
+            return '<div class="history-card" data-id="' + r.id + '">' +
+                '<div class="history-card-left">' +
+                    '<span class="history-card-date">' + dateStr + '</span>' +
+                    '<span class="history-card-meta">' + r.item_count + ' item</span>' +
+                '</div>' +
+                '<div class="history-card-actions">' +
+                    '<button class="btn-icon view-report" data-id="' + r.id + '" title="Lihat">&rarr;</button>' +
+                    '<button class="btn-icon wa-report" data-id="' + r.id + '" title="Copy WA">&#9881;</button>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        document.querySelectorAll('.view-report').forEach(function(btn) {
+            btn.addEventListener('click', function() { viewReport(btn.dataset.id); });
+        });
+        document.querySelectorAll('.wa-report').forEach(function(btn) {
+            btn.addEventListener('click', function() { copyWA(btn.dataset.id); });
+        });
+
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('view')) {
+            viewReport(parseInt(params.get('view')));
+        }
+    } catch (err) {
+        document.getElementById('reportList').innerHTML = '<div class="empty-state error">Gagal load report</div>';
+    }
+}
+
+async function viewReport(id) {
+    try {
+        var report = await API.fetchJSON('/api/my-reports/' + id);
+        var modal = document.getElementById('detailModal');
+        var body = document.getElementById('modalBody');
+
+        var d = new Date(report.report_date + 'T00:00:00');
+        var dateStr = d.toLocaleDateString('id-ID', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+
+        var cats = {
+            completed: { label: 'Completed' },
+            in_progress: { label: 'In Progress' },
+            next_action: { label: 'Next Action' },
+        };
+
+        var html = '<div class="modal-detail-date">' + dateStr + '</div>';
+        if (report.user_name) html += '<div class="modal-detail-user">' + esc(report.user_name) + '</div>';
+
+        Object.keys(cats).forEach(function(key) {
+            var items = report.items.filter(function(i) { return i.category === key; });
+            if (items.length === 0) return;
+            html += '<div class="modal-detail-cat">' +
+                '<span class="cat-label">' + cats[key].label + '</span>' +
+                '<ul>' + items.map(function(i) { return '<li>' + esc(i.content) + '</li>'; }).join('') + '</ul>' +
+            '</div>';
+        });
+
+        body.innerHTML = html;
+        modal.style.display = 'flex';
+        modal.dataset.reportId = id;
+    } catch (err) {
+        API.showError('Gagal load detail');
+    }
+}
+
+async function copyWA(id) {
+    try {
+        var data = await API.fetchJSON('/api/report/' + id + '/whatsapp');
+        await navigator.clipboard.writeText(data.text);
+        API.showToast('Teks report disalin');
+    } catch {
+        API.showError('Gagal copy');
+    }
+}
+
+document.querySelectorAll('.close-modal').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.getElementById('detailModal').style.display = 'none';
+    });
+});
+document.getElementById('detailModal').addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) document.getElementById('detailModal').style.display = 'none';
+});
+document.getElementById('modalWhatsApp').addEventListener('click', function() {
+    var id = document.getElementById('detailModal').dataset.reportId;
+    if (id) copyWA(id);
+});
+
+loadReports();
+</script>
+{% endblock %}

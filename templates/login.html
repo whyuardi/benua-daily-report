@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Login — BGE{% endblock %}
+{% block head %}
+<style>
+    .header { display: none; }
+    .page { padding: 0; max-width: none; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="login-page">
+    <div class="login-box">
+        <div class="login-brand">
+            <div class="login-brand-icon">B</div>
+            <div class="login-brand-name">BGE</div>
+            <div class="login-brand-sub">Benua Green Energy</div>
+        </div>
+
+        <div class="login-divider"></div>
+
+        <form class="login-form" id="loginForm">
+            <div class="field">
+                <label class="label" for="phone">Nomor HP</label>
+                <input type="tel" class="input" id="phone" name="phone" placeholder="08xxxxxxxxxx" required autocomplete="tel" inputmode="numeric" style="font-size:1.05rem">
+            </div>
+            <div class="field">
+                <label class="label" for="pin">PIN (4 digit)</label>
+                <input type="password" class="input" id="pin" name="pin" placeholder="****" required maxlength="4" inputmode="numeric" pattern="[0-9]{4}" style="font-size:1.05rem">
+            </div>
+            <div class="field" style="margin-top:20px">
+                <button type="submit" class="btn btn-primary btn-full" id="loginBtn" style="font-size:1rem;min-height:48px">
+                    <span class="btn-text">Masuk</span>
+                    <span class="btn-loader" style="display:none">—</span>
+                </button>
+            </div>
+            <div class="login-error" id="loginError" style="display:none"></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const errorEl = document.getElementById('loginError');
+    const btnText = btn.querySelector('.btn-text');
+    const loader = btn.querySelector('.btn-loader');
+
+    btnText.style.display = 'none';
+    loader.style.display = 'inline';
+    btn.disabled = true;
+    errorEl.style.display = 'none';
+
+    const form = new FormData(e.target);
+    try {
+        const res = await fetch('/api/login', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login gagal');
+        localStorage.setItem('bge_token', data.token);
+        localStorage.setItem('bge_user', JSON.stringify(data.user));
+        window.location.href = data.user.role === 'owner' ? '/dashboard' : '/report';
+    } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+        btnText.style.display = 'inline';
+        loader.style.display = 'none';
+        btn.disabled = false;
+    }
+});
+
+if (localStorage.getItem('bge_token')) {
+    try {
+        const user = JSON.parse(localStorage.getItem('bge_user'));
+        window.location.href = user.role === 'owner' ? '/dashboard' : '/report';
+    } catch {}
+}
+</script>
+{% endblock %}

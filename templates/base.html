@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}BGE Daily Report{% endblock %}</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <link rel="stylesheet" href="/static/css/style.css?v=4">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <header class="header" id="mainHeader">
+        <div class="header-brand">
+            <div class="header-brand-icon">B</div>
+            <div>
+                <div class="header-brand-text">BGE Daily</div>
+                <div class="header-brand-sub">Benua Green Energy</div>
+            </div>
+        </div>
+        <div class="header-center" id="headerNav">
+            <a href="/report" class="header-nav-link" data-page="report">Daily Report</a>
+            <a href="/my-reports" class="header-nav-link" data-page="my-reports">My Reports</a>
+            <a href="/dashboard" class="header-nav-link owner-only" data-page="dashboard">Dashboard</a>
+            <a href="/missing-reports" class="header-nav-link owner-only" data-page="missing-reports">Missing</a>
+            <a href="/manage-users" class="header-nav-link owner-only" data-page="manage-users">Users</a>
+            <a href="/manage-divisions" class="header-nav-link owner-only" data-page="manage-divisions">Divisions</a>
+        </div>
+        <div class="header-right">
+            <span class="header-user" id="headerUser"></span>
+            <button class="header-logout" id="logoutBtn">Logout</button>
+        </div>
+    </header>
+
+    <!-- Page Content -->
+    <div class="page" id="mainContent">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/static/js/utils.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
