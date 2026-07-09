@@ -1,6 +1,12 @@
 const BGE_TOKEN_KEY='bge_token';
 const BGE_USER_KEY = 'bge_user';
 
+function esc(str) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(str || ''));
+    return d.innerHTML;
+}
+
 function getToken() { return localStorage.getItem(BGE_TOKEN_KEY); }
 
 function getUser() {
