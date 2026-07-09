@@ -6,7 +6,8 @@ import aiosqlite
 import os
 from passlib.hash import bcrypt
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
+# Use /tmp for Vercel (read-only filesystem) — portable SQLite
+DB_PATH = os.environ.get("DB_PATH", os.path.join("/tmp", "database.db"))
 
 async def get_db():
     db = await aiosqlite.connect(DB_PATH)

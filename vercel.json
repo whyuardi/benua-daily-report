@@ -1,11 +1,13 @@
 {
+  "functions": {
+    "api/**/*.py": {
+      "maxDuration": 30
+    }
+  },
   "builds": [
     {
       "src": "main.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
+      "use": "@vercel/python"
     },
     {
       "src": "static/**",
@@ -15,10 +17,7 @@
   "routes": [
     {
       "src": "/static/(.*)",
-      "dest": "/static/$1",
-      "headers": {
-        "cache-control": "public, max-age=31560000, immutable"
-      }
+      "dest": "/static/$1"
     },
     {
       "src": "/(.*)",
