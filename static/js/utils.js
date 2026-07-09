@@ -1,4 +1,4 @@
-const BGE_TOKEN_KEY = 'bge_token';
+const BGE_TOKEN_KEY='bge_token';
 const BGE_USER_KEY = 'bge_user';
 
 function getToken() { return localStorage.getItem(BGE_TOKEN_KEY); }
