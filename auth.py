@@ -1,18 +1,29 @@
 """
 Auth module — JWT + PIN hashing
+Uses hashlib.pbkdf2_hmac (pure Python) instead of bcrypt to avoid C ext issues on Vercel
 """
 import os
+import hashlib
+import base64
 import datetime
 import jwt
-from passlib.hash import bcrypt
 
 SECRET_KEY = os.environ.get('JWT_SECRET', 'bge-daily-report-secret-key-2024')
 
 def hash_pin(pin: str) -> str:
-    return bcrypt.hash(pin)
+    salt = os.urandom(16)
+    key = hashlib.pbkdf2_hmac('sha256', pin.encode(), salt, 100_000)
+    return base64.b64encode(salt + key).decode()
 
 def verify_pin(pin: str, hashed: str) -> bool:
-    return bcrypt.verify(pin, hashed)
+    try:
+        raw = base64.b64decode(hashed.encode())
+        salt = raw[:16]
+        key = raw[16:]
+        new_key = hashlib.pbkdf2_hmac('sha256', pin.encode(), salt, 100_000)
+        return key == new_key
+    except Exception:
+        return False
 
 def create_token(user_id: int, role: str, phone: str) -> str:
     payload = {

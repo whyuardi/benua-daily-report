@@ -4,7 +4,7 @@ SQLite via aiosqlite with seed data
 """
 import aiosqlite
 import os
-from passlib.hash import bcrypt
+from auth import hash_pin
 
 # Use /tmp for Vercel (read-only filesystem) — portable SQLite
 DB_PATH = os.environ.get("DB_PATH", os.path.join("/tmp", "database.db"))
@@ -80,7 +80,7 @@ async def init_db():
     mgmt_id = row['id'] if row else 1
     
     # Seed owner
-    hashed_pin = bcrypt.hash('1234')
+    hashed_pin = hash_pin('1234')
     await db.execute(
         """INSERT OR IGNORE INTO users (name, phone, pin, division_id, role)
            VALUES (?, ?, ?, ?, ?)""",
@@ -97,7 +97,7 @@ async def init_db():
         cur = await db.execute("SELECT id FROM divisions WHERE name = ?", (div_name,))
         div_row = await cur.fetchone()
         if div_row:
-            hashed = bcrypt.hash(pin)
+            hashed = hash_pin(pin)
             await db.execute(
                 """INSERT OR IGNORE INTO users (name, phone, pin, division_id, role)
                    VALUES (?, ?, ?, ?, 'karyawan')""",
