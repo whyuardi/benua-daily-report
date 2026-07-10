@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request, HTTPException, Depends, Form, Query
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from database import get_db, init_db
 from auth import hash_pin, verify_pin, create_token, decode_token
@@ -42,6 +43,9 @@ async def init_db_middleware(request: Request, call_next):
     await ensure_db()
     return await call_next(request)
 
+# ─── Jinja2 Templates ──────────────────────────────────────
+templates = Jinja2Templates(directory="templates")
+
 # ─── Static / Auth Helpers ────────────────────────────────
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -73,9 +77,9 @@ def require_auth(level: str = "operator"):
 # ─── Login / Auth Pages ───────────────────────────────────
 
 @app.get("/")
-async def index():
-    """Serve login page or dashboard"""
-    return FileResponse("templates/login.html")
+async def index(request: Request):
+    """Serve login page"""
+    return templates.TemplateResponse(request, "login.html")
 
 
 @app.post("/api/login")
@@ -167,7 +171,7 @@ async def get_me(request: Request):
 
 @app.get("/dashboard")
 async def dashboard(request: Request):
-    return FileResponse("templates/dashboard.html")
+    return templates.TemplateResponse(request, "dashboard.html")
 
 
 @app.get("/api/dashboard/init")
@@ -447,7 +451,7 @@ async def get_report_whatsapp(report_id: int, request: Request):
 
 @app.get("/my-reports")
 async def my_reports_page(request: Request):
-    return FileResponse("templates/my-reports.html")
+    return templates.TemplateResponse(request, "my-reports.html")
 
 
 @app.get("/api/my-reports")
@@ -684,7 +688,7 @@ async def delete_report_item_partial(item_id: int, request: Request):
 
 @app.get("/settings")
 async def settings_page(request: Request):
-    return FileResponse("templates/settings.html")
+    return templates.TemplateResponse(request, "settings.html")
 
 
 @app.post("/api/change-pin")
@@ -719,7 +723,7 @@ async def change_pin(request: Request):
 
 @app.get("/admin/users")
 async def manage_users_page(request: Request):
-    return FileResponse("templates/admin-users.html")
+    return templates.TemplateResponse(request, "admin-users.html")
 
 
 @app.get("/api/admin/users")
@@ -790,7 +794,7 @@ async def reset_user_pin(user_id: int, request: Request):
 
 @app.get("/admin/reports")
 async def all_reports_page(request: Request):
-    return FileResponse("templates/admin-reports.html")
+    return templates.TemplateResponse(request, "admin-reports.html")
 
 
 @app.get("/api/admin/reports")
