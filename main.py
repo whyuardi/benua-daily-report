@@ -410,6 +410,18 @@ async def get_whatsapp_format(report_id: int, request: Request):
     )
     report = await cursor.fetchone()
     if not report:
+        # Owner can see all reports
+        if user['role'] == 'owner':
+            cursor = await db.execute(
+                """SELECT r.id, r.report_date, u.name, d.name as division_name
+                   FROM reports r
+                   JOIN users u ON r.user_id = u.id
+                   LEFT JOIN divisions d ON u.division_id = d.id
+                   WHERE r.id = ?""",
+                (report_id,)
+            )
+            report = await cursor.fetchone()
+    if not report:
         await db.close()
         raise HTTPException(status_code=404, detail="Report not found")
     
@@ -688,16 +700,16 @@ async def get_report_items_partial(request: Request):
             <input type="text" class="input add-item-input" 
                    placeholder="Tambah item..." 
                    name="content" 
-                   hx-post="/partials/add-item" hx-vars='{{"category":"{cat_key}"}}'
-                   hx-trigger="keydown[key=="Enter"]"
+                   hx-post="/partials/add-item" hx-vals='{"category":"{cat_key}"}'
+                   hx-trigger="keydown[key=='Enter']"
                    hx-target="#items-{cat_key}"
                    hx-swap="beforeend"
                    hx-on::after-request="this.value=''"
                    _="on htmx:afterRequest if event.detail.successful set my value to ''"
             />
             <button class="btn btn-sm btn-secondary" 
-                    hx-post="/partials/add-item" hx-vars='{{"category":"{cat_key}"}}'
-                    hx-include="closest .add-item-row find input"
+                    hx-post="/partials/add-item" hx-vals='{"category":"{cat_key}"}'
+                    hx-include="closest .add-item-line find input"
                     hx-target="#items-{cat_key}"
                     hx-swap="beforeend"
                     hx-on::after-request="
