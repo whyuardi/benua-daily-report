@@ -13,6 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database import get_db, init_db
 from auth import hash_pin, verify_pin, create_token, decode_token
+import asyncio
+
+_db_initialized = False
+
+async def ensure_db():
+    global _db_initialized
+    if not _db_initialized:
+        await init_db()
+        _db_initialized = True
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,6 +36,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def init_db_middleware(request: Request, call_next):
+    await ensure_db()
+    return await call_next(request)
 
 # ─── Static / Auth Helpers ────────────────────────────────
 
