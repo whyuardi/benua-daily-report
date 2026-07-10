@@ -220,6 +220,75 @@ async def dashboard_init(request: Request):
     }
 
 
+@app.get("/api/dashboard/today")
+async def dashboard_today(request: Request, date: str = "", division_id: int = None):
+    """Returns dashboard stats + reports for a given date and optional division filter."""
+    payload = await require_auth()(request)
+    db = await get_db()
+
+    # Default to today if no date
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+
+    # Total active users
+    if division_id:
+        count_query = "SELECT COUNT(*) FROM users WHERE is_active = 1 AND division_id = ?"
+        cur = await db.execute(count_query, (division_id,))
+        total_users = (await cur.fetchone())[0]
+    else:
+        cur = await db.execute("SELECT COUNT(*) FROM users WHERE is_active = 1")
+        total_users = (await cur.fetchone())[0]
+
+    # Reports with saved=1 for this date
+    if division_id:
+        reports_query = """
+            SELECT r.id, r.user_id, r.report_date, u.name as user_name, d.name as division_name
+            FROM reports r
+            JOIN users u ON r.user_id = u.id
+            JOIN divisions d ON u.division_id = d.id
+            WHERE r.report_date = ? AND r.saved = 1 AND u.division_id = ?
+            ORDER BY u.name
+        """
+        cur = await db.execute(reports_query, (date, division_id))
+    else:
+        reports_query = """
+            SELECT r.id, r.user_id, r.report_date, u.name as user_name, d.name as division_name
+            FROM reports r
+            JOIN users u ON r.user_id = u.id
+            JOIN divisions d ON u.division_id = d.id
+            WHERE r.report_date = ? AND r.saved = 1
+            ORDER BY u.name
+        """
+        cur = await db.execute(reports_query, (date,))
+
+    report_rows = await cur.fetchall()
+    submitted = len(report_rows)
+
+    # Build reports with items
+    reports = []
+    for row in report_rows:
+        r = dict(row)
+        items_cur = await db.execute(
+            "SELECT id, category, content, sort_order FROM report_items WHERE report_id = ? ORDER BY sort_order",
+            (r["id"],)
+        )
+        items = await items_cur.fetchall()
+        grouped = {"completed": [], "in_progress": [], "next_action": []}
+        for item in items:
+            grouped[item["category"]].append({"id": item["id"], "content": item["content"]})
+        r["items"] = grouped
+        reports.append(r)
+
+    await db.close()
+
+    return {
+        "total_users": total_users,
+        "submitted": submitted,
+        "missing_count": total_users - submitted,
+        "reports": reports,
+    }
+
+
 # ─── Daily Report API ─────────────────────────────────────
 
 @app.get("/api/report/items/{report_id}")
