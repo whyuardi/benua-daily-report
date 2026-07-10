@@ -594,7 +594,7 @@ async def get_my_report_detail(report_id: int, request: Request):
         "report_date": report['report_date'],
         "created_at": report['created_at'],
         "updated_at": report['updated_at'],
-        "user_name": report.get('user_name'),
+        "user_name": report['user_name'] if 'user_name' in report else None,
         "items": [{"id": i['id'], "category": i['category'], "content": i['content'], "sort_order": i['sort_order']} for i in items]
     }
 

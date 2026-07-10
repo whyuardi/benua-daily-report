@@ -84,7 +84,7 @@ async function loadDashboard() {
                     '<div class="report-card-items">' + renderItems(r.items) + '</div>' +
                     '<div class="report-card-footer">' +
                         '<span>' + (r.updated_at ? formatTime(r.updated_at) : '-') + '</span>' +
-                        '<button class="btn-icon" onclick="window.location.href=\'/my-reports?view=' + r.report_id + '\'">&rarr;</button>' +
+                        '<a href="/my-reports?view=' + r.report_id + '" class="btn-icon">&rarr;</a>' +
                     '</div>' +
                 '</div>';
             }).join('');
