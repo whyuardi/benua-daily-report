@@ -33,7 +33,7 @@ async def init_db():
             phone TEXT UNIQUE NOT NULL,
             pin TEXT NOT NULL,
             division_id INTEGER,
-            role TEXT NOT NULL DEFAULT 'karyawan' CHECK(role IN ('owner', 'karyawan')),
+            role TEXT NOT NULL DEFAULT 'karyawan' CHECK(role IN ('owner', 'admin', 'karyawan')),
             is_active INTEGER NOT NULL DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (division_id) REFERENCES divisions(id)
@@ -43,6 +43,7 @@ async def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             report_date DATE NOT NULL,
+            saved INTEGER NOT NULL DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_id, report_date),
