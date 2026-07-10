@@ -14,18 +14,6 @@ from contextlib import asynccontextmanager
 from database import get_db, init_db
 from auth import hash_pin, verify_pin, create_token, decode_token
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ─── Lifespan ─────────────────────────────────────────────
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
