@@ -171,7 +171,8 @@ async def get_me(request: Request):
 
 @app.get("/dashboard")
 async def dashboard(request: Request):
-    return templates.TemplateResponse(request, "dashboard.html")
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    return templates.TemplateResponse(request, "dashboard.html", {"today": today_str})
 
 
 @app.get("/api/dashboard/init")
