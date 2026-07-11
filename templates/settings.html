@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Settings — BGE{% endblock %}
+{% block content %}
+<div class="page-title">Settings</div>
+<div class="fresh-divider"></div>
+<div class="settings-section">
+    <h3>Ubah PIN</h3>
+    <form id="changePinForm" class="login-form" style="max-width:360px">
+        <div class="field">
+            <label class="label" for="oldPin">PIN Lama</label>
+            <input type="password" class="input" id="oldPin" name="old_pin" required maxlength="4" inputmode="numeric">
+        </div>
+        <div class="field">
+            <label class="label" for="newPin">PIN Baru</label>
+            <input type="password" class="input" id="newPin" name="new_pin" required maxlength="4" inputmode="numeric">
+        </div>
+        <button type="submit" class="btn btn-primary">Simpan</button>
+    </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = window.BGE_API;
+document.getElementById('changePinForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var form = new FormData(this);
+    try {
+        await API.fetchJSON('/api/change-pin', { method: 'POST', body: form });
+        API.showToast('PIN berhasil diubah');
+        this.reset();
+    } catch (err) {
+        API.showError(err.message);
+    }
+});
+</script>
+{% endblock %}

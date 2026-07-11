@@ -570,7 +570,7 @@ async def get_today_report(request: Request):
 
 @app.get("/my-reports")
 async def my_reports_page(request: Request):
-    return templates.TemplateResponse(request, "my-reports.html")
+    return templates.TemplateResponse(request, "my_reports.html")
 
 
 @app.get("/api/my-reports")
@@ -863,7 +863,7 @@ async def change_pin(request: Request):
 
 @app.get("/admin/users")
 async def manage_users_page(request: Request):
-    return templates.TemplateResponse(request, "admin-users.html")
+    return templates.TemplateResponse(request, "manage_users.html")
 
 
 @app.get("/api/admin/users")
@@ -934,7 +934,7 @@ async def reset_user_pin(user_id: int, request: Request):
 
 @app.get("/admin/reports")
 async def all_reports_page(request: Request):
-    return templates.TemplateResponse(request, "admin-reports.html")
+    return templates.TemplateResponse(request, "my_reports.html")
 
 
 @app.get("/api/admin/reports")
