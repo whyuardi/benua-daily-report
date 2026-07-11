@@ -279,6 +279,37 @@ async def dashboard_today(request: Request, date: str = "", division_id: int = N
         r["items"] = grouped
         reports.append(r)
 
+    # Missing users (not submitted)
+    if division_id:
+        missing_query = """
+            SELECT u.id, u.name, u.division_id, d.name as division_name
+            FROM users u
+            LEFT JOIN divisions d ON u.division_id = d.id
+            WHERE u.is_active = 1 AND u.division_id = ?
+            AND NOT EXISTS (
+                SELECT 1 FROM reports r
+                WHERE r.user_id = u.id AND r.report_date = ? AND r.saved = 1
+            )
+            ORDER BY u.name
+        """
+        cur = await db.execute(missing_query, (division_id, date))
+    else:
+        missing_query = """
+            SELECT u.id, u.name, u.division_id, d.name as division_name
+            FROM users u
+            LEFT JOIN divisions d ON u.division_id = d.id
+            WHERE u.is_active = 1
+            AND NOT EXISTS (
+                SELECT 1 FROM reports r
+                WHERE r.user_id = u.id AND r.report_date = ? AND r.saved = 1
+            )
+            ORDER BY u.name
+        """
+        cur = await db.execute(missing_query, (date,))
+
+    missing_rows = await cur.fetchall()
+    missing_users = [dict(r) for r in missing_rows]
+
     await db.close()
 
     return {
@@ -286,6 +317,7 @@ async def dashboard_today(request: Request, date: str = "", division_id: int = N
         "submitted": submitted,
         "missing_count": total_users - submitted,
         "reports": reports,
+        "missing_users": missing_users,
     }
 
 
