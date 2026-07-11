@@ -793,6 +793,27 @@ async def settings_page(request: Request):
     return templates.TemplateResponse(request, "settings.html")
 
 
+@app.get("/report")
+async def report_page(request: Request):
+    return templates.TemplateResponse(request, "report.html")
+
+
+@app.get("/missing-reports")
+async def missing_reports_page(request: Request):
+    return templates.TemplateResponse(request, "missing_reports.html")
+
+
+@app.get("/manage-users")
+async def manage_users_alt(request: Request):
+    return templates.TemplateResponse(request, "manage_users.html")
+
+
+@app.get("/manage-divisions")
+async def manage_divisions_alt(request: Request):
+    return templates.TemplateResponse(request, "manage_divisions.html")
+
+
+# ─── Settings ──────────────────────────────────────
 @app.post("/api/change-pin")
 async def change_pin(request: Request):
     payload = await require_auth()(request)
