@@ -551,6 +551,23 @@ async def get_report_whatsapp(report_id: int, request: Request):
 
 # ─── My Reports ───────────────────────────────────────────
 
+@app.get("/api/report/today")
+async def get_today_report(request: Request):
+    """Returns the current user's report for today."""
+    payload = await require_auth()(request)
+    db = await get_db()
+    today = datetime.now().strftime("%Y-%m-%d")
+    cursor = await db.execute(
+        "SELECT id, report_date FROM reports WHERE user_id = ? AND report_date = ? AND saved = 1 ORDER BY created_at DESC LIMIT 1",
+        (payload["user_id"], today)
+    )
+    report = await cursor.fetchone()
+    await db.close()
+    if report:
+        return {"report": dict(report)}
+    return {"report": None}
+
+
 @app.get("/my-reports")
 async def my_reports_page(request: Request):
     return templates.TemplateResponse(request, "my-reports.html")
